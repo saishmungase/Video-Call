@@ -84,17 +84,15 @@
 
 
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 export const Receiver = () => {
-    const [socket, setSocket] = useState<WebSocket | null>(null);
     const pcRef = useRef<RTCPeerConnection | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
 
     useEffect(() => {
         const socket = new WebSocket("ws://localhost:8080");
-        setSocket(socket);
-        console.log(socket)
+        
         const pc = new RTCPeerConnection({
             iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
         });
