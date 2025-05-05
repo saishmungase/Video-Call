@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 interface Message {
@@ -42,7 +42,7 @@ function App() {
     };
     
     websocketRef.current.onmessage = handleWebSocketMessage;
-    
+    console.log(isCallStarted)
     return () => {
       if (websocketRef.current) {
         websocketRef.current.close();

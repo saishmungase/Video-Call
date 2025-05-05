@@ -94,7 +94,7 @@ export const Receiver = () => {
     useEffect(() => {
         const socket = new WebSocket("ws://localhost:8080");
         setSocket(socket);
-
+        console.log(socket)
         const pc = new RTCPeerConnection({
             iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
         });
