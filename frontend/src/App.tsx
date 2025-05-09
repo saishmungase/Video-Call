@@ -42,7 +42,7 @@ function App() {
     };
     
     websocketRef.current.onmessage = handleWebSocketMessage;
-    console.log(isCallStarted)
+    
     return () => {
       if (websocketRef.current) {
         websocketRef.current.close();
@@ -60,42 +60,75 @@ function App() {
 
   // Handle WebSocket messages
   const handleWebSocketMessage = (event: MessageEvent) => {
-    const message = JSON.parse(event.data);
-    console.log('Received message:', message);
-    
-    switch (message.type) {
-      case 'roomCreated':
+    try {
+      const message = JSON.parse(event.data);
+      console.log('Received message:', message);
+      
+      switch (message.type) {
+        case 'message created with code':
+          // Handle the string response from server for room creation
+          setMode('create');
+          setIsConnected(true);
+          // Extract the code from response message
+          const codeMatch = message.match(/code\s+([A-Z0-9]+)/i);
+          if (codeMatch && codeMatch[1]) {
+            setRoomCode(codeMatch[1]);
+          }
+          break;
+
+        case 'roomCreated':
+          setMode('create');
+          setIsConnected(true);
+          setRoomCode(message.code || roomCode);
+          break;
+        
+        case 'roomJoined':
+        case 'join':
+          setMode('join');
+          setIsConnected(true);
+          initializeCall();
+          break;
+        
+        case 'createOffer':
+          handleOffer(message.sdp);
+          break;
+        
+        case 'createAnswer':
+          handleAnswer(message.sdp);
+          break;
+        
+        case 'iceCandidate':
+          handleIceCandidate(message.candidate);
+          break;
+        
+        case 'error':
+          setErrorMessage(message.message || 'An error occurred');
+          break;
+          
+        default:
+          // For string responses that don't follow JSON structure
+          if (typeof event.data === 'string' && event.data.includes('message created with code')) {
+            setMode('create');
+            setIsConnected(true);
+            const codeMatch = event.data.match(/code\s+([A-Z0-9]+)/i);
+            if (codeMatch && codeMatch[1]) {
+              setRoomCode(codeMatch[1]);
+            }
+          } else {
+            console.log('Unhandled message type:', message.type);
+          }
+      }
+    } catch (error) {
+      console.error('Error parsing message:', error);
+      // Handle plain text messages
+      if (typeof event.data === 'string' && event.data.includes('message created with code')) {
         setMode('create');
         setIsConnected(true);
-        setRoomCode(message.code || roomCode);
-        console.log(message.type)
-        break;
-      
-      case 'roomJoined':
-        setMode('join');
-        setIsConnected(true);
-        initializeCall();
-        console.log(message.type)
-        break;
-      
-      case 'offer':
-        handleOffer(message.sdp);
-        break;
-      
-      case 'answer':
-        handleAnswer(message.sdp);
-        break;
-      
-      case 'iceCandidate':
-        handleIceCandidate(message.candidate);
-        break;
-      
-      case 'error':
-        setErrorMessage(message.message || 'An error occurred');
-        break;
-        
-      default:
-        console.log('Unhandled message type:', message.type);
+        const codeMatch = event.data.match(/code\s+([A-Z0-9]+)/i);
+        if (codeMatch && codeMatch[1]) {
+          setRoomCode(codeMatch[1]);
+        }
+      }
     }
   };
 
@@ -136,8 +169,14 @@ function App() {
           type: 'join',
           code: roomCode
         };
-        console.log(message)
         websocketRef.current.send(JSON.stringify(message));
+        // Since there's no explicit response, we'll set the state here
+        setMode('join');
+        setIsConnected(true);
+        // Initialize call after a short delay to ensure WebSocket message is processed
+        setTimeout(() => {
+          initializeCall();
+        }, 500);
       }
     } catch (error) {
       console.error('Error joining room:', error);
@@ -178,7 +217,12 @@ function App() {
       const configuration = {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
+          { urls: 'stun:stun1.l.google.com:19302' },
+          {
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+          }
         ]
       };
       
@@ -198,7 +242,7 @@ function App() {
       peerConnection.onicecandidate = (event) => {
         if (event.candidate && websocketRef.current) {
           const message: Message = {
-            type: 'iceCandidates',
+            type: 'iceCandidates',  // Match the expected type in backend
             candidate: event.candidate
           };
           
@@ -206,8 +250,18 @@ function App() {
         }
       };
       
+      // Log connection state changes
+      peerConnection.onconnectionstatechange = (event) => {
+        console.log('Connection state change:', peerConnection.connectionState);
+      };
+
+      peerConnection.oniceconnectionstatechange = (event) => {
+        console.log('ICE connection state change:', peerConnection.iceConnectionState);
+      };
+      
       // Handle incoming tracks
       peerConnection.ontrack = (event) => {
+        console.log('Remote track received:', event);
         if (remoteVideoRef.current && event.streams[0]) {
           remoteVideoRef.current.srcObject = event.streams[0];
           setIsCallStarted(true);
@@ -216,6 +270,7 @@ function App() {
       
       // Create offer if in join mode
       if (mode === 'join') {
+        console.log('Creating offer as joiner');
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
         
@@ -242,8 +297,10 @@ function App() {
       }
       
       if (peerConnectionRef.current) {
+        console.log('Received offer, setting remote description');
         await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(sdp));
         
+        console.log('Creating answer');
         const answer = await peerConnectionRef.current.createAnswer();
         await peerConnectionRef.current.setLocalDescription(answer);
         
@@ -266,6 +323,7 @@ function App() {
   const handleAnswer = async (sdp: RTCSessionDescriptionInit) => {
     try {
       if (peerConnectionRef.current) {
+        console.log('Received answer, setting remote description');
         await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(sdp));
       }
     } catch (error) {
@@ -278,6 +336,7 @@ function App() {
   const handleIceCandidate = async (candidate: RTCIceCandidate) => {
     try {
       if (peerConnectionRef.current) {
+        console.log('Adding ICE candidate:', candidate);
         await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
       }
     } catch (error) {
@@ -299,6 +358,7 @@ function App() {
     setIsCallStarted(false);
     setMode('idle');
     setRoomCode('');
+    setIsConnected(false);
   };
 
   // Generate a random room code
@@ -400,6 +460,13 @@ function App() {
               <button onClick={endCall} className="end-call-button">End Call</button>
             </div>
           </>
+        )}
+      </div>
+      
+      <div className="connection-status">
+        <p>Call Status: {isCallStarted ? 'Connected' : 'Waiting for connection...'}</p>
+        {peerConnectionRef.current && (
+          <p>Connection State: {peerConnectionRef.current.connectionState}</p>
         )}
       </div>
     </div>
