@@ -252,10 +252,12 @@ function App() {
       
       // Log connection state changes
       peerConnection.onconnectionstatechange = (event) => {
+        console.log(event)
         console.log('Connection state change:', peerConnection.connectionState);
       };
 
       peerConnection.oniceconnectionstatechange = (event) => {
+        console.log(event)
         console.log('ICE connection state change:', peerConnection.iceConnectionState);
       };
       
