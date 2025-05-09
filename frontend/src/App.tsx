@@ -68,12 +68,14 @@ function App() {
         setMode('create');
         setIsConnected(true);
         setRoomCode(message.code || roomCode);
+        console.log(message.type)
         break;
       
       case 'roomJoined':
         setMode('join');
         setIsConnected(true);
         initializeCall();
+        console.log(message.type)
         break;
       
       case 'offer':
@@ -111,7 +113,6 @@ function App() {
           type: 'init',
           code: generatedCode
         };
-        
         websocketRef.current.send(JSON.stringify(message));
       }
     } catch (error) {
@@ -135,7 +136,7 @@ function App() {
           type: 'join',
           code: roomCode
         };
-        
+        console.log(message)
         websocketRef.current.send(JSON.stringify(message));
       }
     } catch (error) {

@@ -7,34 +7,39 @@ const m = new Manager();
 
 wss.on("connection", (ws : WebSocket) => {
   ws.on("error", () => console.log("Error !"));
+  console.log("User Is Connected !")
   ws.on("message", function message(data : any){
+    console.log("User Have Message")
     const message = JSON.parse(data);
+    console.log(message);
     if(message.type === 'init'){
       const code = message.code;
       //@ts-ignore
       m.createRoom(ws, code);
-      console.log("init" + message.type)
+      console.log("init => " + code)
+      const response = "message created with code " + code;
+      ws.send(response);
     }
     else if(message.type === 'join'){
       const code = message.code;
       //@ts-ignore
       m.addToRoom(ws, code)
-      console.log("join" + message.type)
+      console.log("join => " + code)
     }
     else if(message.type === 'createOffer'){
       //@ts-ignore
       m.createOffer(ws, message.sdp)
-      console.log("createOffer" + message.type)
+      console.log("createOffer => " + message.sdp)
     }
     else if(message.type === 'createAnswer'){
       //@ts-ignore
       m.createAnswer(ws, message.sdp)
-      console.log("createAnswer" + message.type)
+      console.log("createAnswer => " + message.sdp)
     }
     else if(message.type === 'iceCandidates'){
       //@ts-ignore
       m.iceCandidate(ws, message.candidate);
-      console.log("iceCandidates" + message.type)
+      console.log("iceCandidates => " + message.candidate)
     }
   })
 })
