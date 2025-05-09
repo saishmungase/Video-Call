@@ -25,7 +25,7 @@ function App() {
 
   // Initialize WebSocket connection
   useEffect(() => {
-    websocketRef.current = new WebSocket('ws://video-call-u04n.onrender.com');
+    websocketRef.current = new WebSocket('wss://video-call-u04n.onrender.com');
     
     websocketRef.current.onopen = () => {
       console.log('Connected to WebSocket server');
